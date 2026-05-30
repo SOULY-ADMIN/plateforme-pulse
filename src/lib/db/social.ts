@@ -18,8 +18,30 @@ function displayNameFor(user: ClerkDbUser) {
   return user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ") || usernameFor(user);
 }
 
+function logEnsurePulseUserNull(user: ClerkDbUser | null | undefined) {
+  console.log("sql present ?", Boolean(sql));
+  console.log("user object", user);
+  console.log("user.id", user?.id);
+}
+
 export async function ensurePulseUser(user: ClerkDbUser | null | undefined) {
-  if (!sql || !user?.id) return null;
+  console.log("ensurePulseUser start");
+  console.log("user", user?.id);
+  console.log("DATABASE_URL configured", !!process.env.DATABASE_URL);
+  console.log("sql client available", Boolean(sql));
+
+  if (!sql) {
+    console.error("ensurePulseUser returning null: sql client is not configured");
+    logEnsurePulseUserNull(user);
+    return null;
+  }
+
+  if (!user?.id) {
+    console.error("ensurePulseUser returning null: missing Clerk user id");
+    logEnsurePulseUserNull(user);
+    return null;
+  }
+
   const username = usernameFor(user);
   const displayName = displayNameFor(user);
   try {
@@ -34,8 +56,13 @@ export async function ensurePulseUser(user: ClerkDbUser | null | undefined) {
       returning id
     `;
     return rows[0]?.id as string | undefined;
-  } catch {
-    return null;
+  } catch (error) {
+    const sqlError = error as { code?: unknown; message?: unknown };
+    console.error("ensurePulseUser SQL error:", error);
+    console.error("ensurePulseUser SQL error message:", sqlError.message);
+    console.error("ensurePulseUser SQL error code:", sqlError.code);
+    logEnsurePulseUserNull(user);
+    throw error;
   }
 }
 

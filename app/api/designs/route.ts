@@ -56,85 +56,96 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!isClerkConfigured()) {
-    return NextResponse.json({ error: "Clerk is not configured" }, { status: 503 });
-  }
-  const { userId } = await getOptionalAuth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!sql) return NextResponse.json({ error: "Database is not configured" }, { status: 503 });
+  try {
+    if (!isClerkConfigured()) {
+      return NextResponse.json({ error: "Clerk is not configured" }, { status: 503 });
+    }
+    const { userId } = await getOptionalAuth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!sql) return NextResponse.json({ error: "Database is not configured" }, { status: 503 });
 
-  const parsed = createDesignSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid design submission" }, { status: 400 });
-  }
-  const payload = parsed.data;
-  const dbUserId = await ensurePulseUser(await getOptionalCurrentUser());
-  if (!dbUserId) return NextResponse.json({ error: "Unable to create creator profile" }, { status: 500 });
-  const slugBase = payload.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 72) || "design";
-  const slug = `${slugBase}-${crypto.randomUUID().slice(0, 8)}`;
-  const embroidery = payload.branding === "Embroidery" ? "Embroidery" : "None";
-  const printType = ["Printed Logo", "Screen Print", "Puff Print"].includes(payload.branding) ? payload.branding : "None";
-  const rows = await sql`
-    insert into designs (
-      creator_id,
-      slug,
-      title,
-      description,
-      product_type,
-      clothing_type,
-      fabric,
-      fit,
-      branding,
-      color_base,
-      collar,
-      sleeve,
-      leg_opening,
-      embroidery,
-      print_type,
-      colorway,
-      cover_image_url,
-      gallery_image_urls,
-      tags,
-      status
-    )
-    values (
-      ${dbUserId}::uuid,
-      ${slug},
-      ${payload.title},
-      ${payload.description},
-      ${payload.productType},
-      ${payload.productType},
-      ${payload.fabric},
-      ${payload.fit},
-      ${payload.branding},
-      ${payload.color},
-      ${payload.collar || null},
-      ${payload.sleeve || null},
-      ${payload.legOpening || null},
-      ${embroidery},
-      ${printType},
-      ${payload.color},
-      ${payload.coverImageUrl},
-      ${payload.galleryImageUrls},
-      ${payload.tags},
-      'PENDING_REVIEW'
-    )
-    returning slug, status
-  `;
+    const parsed = createDesignSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid design submission" }, { status: 400 });
+    }
+    const payload = parsed.data;
+    const dbUserId = (await ensurePulseUser(await getOptionalCurrentUser())) ?? null;
+    console.log("dbUserId =", dbUserId);
+    const slugBase = payload.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 72) || "design";
+    const slug = `${slugBase}-${crypto.randomUUID().slice(0, 8)}`;
+    const embroidery = payload.branding === "Embroidery" ? "Embroidery" : "None";
+    const printType = ["Printed Logo", "Screen Print", "Puff Print"].includes(payload.branding) ? payload.branding : "None";
+    const rows = await sql`
+      insert into designs (
+        creator_id,
+        slug,
+        title,
+        description,
+        product_type,
+        clothing_type,
+        fabric,
+        fit,
+        branding,
+        color_base,
+        collar,
+        sleeve,
+        leg_opening,
+        embroidery,
+        print_type,
+        colorway,
+        cover_image_url,
+        gallery_image_urls,
+        tags,
+        status
+      )
+      values (
+        ${dbUserId}::uuid,
+        ${slug},
+        ${payload.title},
+        ${payload.description},
+        ${payload.productType},
+        ${payload.productType},
+        ${payload.fabric},
+        ${payload.fit},
+        ${payload.branding},
+        ${payload.color},
+        ${payload.collar || null},
+        ${payload.sleeve || null},
+        ${payload.legOpening || null},
+        ${embroidery},
+        ${printType},
+        ${payload.color},
+        ${payload.coverImageUrl},
+        ${payload.galleryImageUrls},
+        ${payload.tags},
+        'PENDING_REVIEW'
+      )
+      returning slug, status
+    `;
 
-  return NextResponse.json(
-    {
-      design: {
-        creatorId: userId,
-        slug: rows[0]?.slug,
-        status: rows[0]?.status,
-        ...payload
-      }
-    },
-    { status: 201 }
-  );
+    return NextResponse.json(
+      {
+        design: {
+          creatorId: userId,
+          slug: rows[0]?.slug,
+          status: rows[0]?.status,
+          ...payload
+        }
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: String(error),
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : null
+      },
+      { status: 500 }
+    );
+  }
 }
