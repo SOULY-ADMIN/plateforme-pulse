@@ -10,6 +10,37 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+const hiddenSpecValues = new Set([
+  "",
+  "none",
+  "non défini",
+  "null",
+  "undefined",
+  "production estimate pending",
+  "production wash pending",
+  "submitted by the creator",
+  "submitted by the creator.",
+  "creator-defined",
+  "unspecified"
+]);
+
+function cleanSpecValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  const text = String(value).trim();
+  const normalized = text.toLowerCase();
+  if (hiddenSpecValues.has(normalized)) return "";
+  if (normalized.includes("pending")) return "";
+  return text;
+}
+
+function firstSpecValue(...values: unknown[]) {
+  for (const value of values) {
+    const cleaned = cleanSpecValue(value);
+    if (cleaned) return cleaned;
+  }
+  return "";
+}
+
 type DesignDetailDiagnostics = Awaited<ReturnType<typeof getDesignDetailSchemaDiagnostics>>;
 
 function DesignDetailLoadError({
@@ -60,10 +91,11 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
     return <DesignDetailLoadError diagnostics={diagnostics} message="Design not found for this slug." slug={slug} />;
   }
 
+  const description = firstSpecValue(design.description);
   const specs = [
     ["Title", design.title],
-    ["Creator", `@${design.creator}`],
-    ["Inspiration", design.inspiration],
+    ["Creator", design.creator ? `@${design.creator}` : ""],
+    ["Inspiration", firstSpecValue(design.inspiration, design.description)],
     ["Streetwear style", design.style],
     ["Fit", design.fit],
     ["Cut", design.cut],
@@ -74,7 +106,10 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
     ["Colorway", design.colorway],
     ["Washing style", design.washing],
     ["Target aesthetic", design.aesthetic]
-  ];
+  ]
+    .map(([label, value]) => [label, cleanSpecValue(value)] as const)
+    .filter(([, value]) => value);
+
   return (
     <main>
       <section className="detail-hero">
@@ -83,7 +118,7 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
           <aside className="panel">
             <span className="eyebrow">{design.category} concept</span>
             <h1 className="detail-title">{design.title}</h1>
-            <p className="muted">{design.description}</p>
+            {description ? <p className="muted">{description}</p> : null}
             <div className="approval"><strong>{design.likes.toLocaleString()} community votes</strong><div className="progress" style={{ "--value": `${Math.min(100, design.likes)}%` } as CSSProperties}><span /></div></div>
             <div className="hero-actions"><a className="primary-btn" href={`/community`}>Back to community</a><ShareButton title={design.title} /></div>
           </aside>

@@ -138,18 +138,18 @@ export function mapDesignRow(row: DesignRow): Design {
     creatorName: row.display_name || row.username,
     cut: row.cut || row.fit,
     description: row.description,
-    embroidery: row.embroidery || (row.branding === "Embroidery" ? "Embroidery" : "None"),
+    embroidery: row.embroidery || (row.branding === "Embroidery" ? "Embroidery" : ""),
     fabric: row.fabric,
     fit: row.fit,
     galleryImageUrls: row.gallery_image_urls || [],
     garment: tokens.garment,
-    gsm: row.gsm || "Production estimate pending",
+    gsm: row.gsm || "",
     height: shapeFor(productType) === "pants" ? "tall" : "short",
-    inspiration: row.inspiration || "Submitted by the creator.",
+    inspiration: row.inspiration || row.description,
     legOpening: row.leg_opening,
     likes: likeCount,
     palette: row.palette?.length ? row.palette : tokens.palette,
-    printType: row.print_type || (row.branding && row.branding !== "Embroidery" ? row.branding : "None"),
+    printType: row.print_type || (row.branding && row.branding !== "Embroidery" && row.branding !== "No Branding" ? row.branding : ""),
     saves: saveCount,
     shape: shapeFor(productType),
     sleeve: row.sleeve,
@@ -159,8 +159,8 @@ export function mapDesignRow(row: DesignRow): Design {
     tags: row.tags || [],
     title: row.title,
     visual: tokens.visual,
-    washing: row.washing_style || "Production wash pending",
-    aesthetic: row.target_aesthetic || "Creator-defined"
+    washing: row.washing_style || "",
+    aesthetic: row.target_aesthetic || ""
   };
 }
 
