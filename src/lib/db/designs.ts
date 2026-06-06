@@ -52,6 +52,18 @@ type CreatorRow = {
   username: string;
 };
 
+const designDetailTables = ["users", "designs", "design_likes", "design_saves", "comments"] as const;
+const designDetailColumns = [
+  "slug",
+  "status",
+  "creator_id",
+  "cover_image_url",
+  "gallery_image_urls",
+  "tags",
+  "created_at",
+  "updated_at"
+] as const;
+
 function numberFrom(value: number | string | null | undefined) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number.parseInt(value, 10) || 0;
@@ -292,6 +304,7 @@ export async function findDesignBySlug(slug: string) {
   noStore();
   if (!sql) return null;
   try {
+    console.log("findDesignBySlug start", slug);
     const rows = await sql`
       select ${designSelect()}
       from designs d
@@ -303,9 +316,61 @@ export async function findDesignBySlug(slug: string) {
       group by d.id, u.username, u.display_name, u.avatar_url
       limit 1
     `;
+    console.log("findDesignBySlug rows", rows.length);
     return rows[0] ? mapDesignRow(rows[0] as DesignRow) : null;
-  } catch {
-    return null;
+  } catch (error) {
+    console.error("findDesignBySlug failed:", error);
+    throw error;
+  }
+}
+
+export async function getDesignDetailSchemaDiagnostics() {
+  noStore();
+  if (!sql) {
+    return {
+      databaseConfigured: false,
+      existingColumns: [],
+      existingTables: [],
+      missingColumns: [...designDetailColumns],
+      missingTables: [...designDetailTables]
+    };
+  }
+
+  try {
+    const [tableRows, columnRows] = await Promise.all([
+      sql`
+        select table_name
+        from information_schema.tables
+        where table_schema = 'public'
+      `,
+      sql`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'designs'
+      `
+    ]);
+    const tableNames = tableRows.map((row) => String(row.table_name));
+    const columnNames = columnRows.map((row) => String(row.column_name));
+    const existingTables = designDetailTables.filter((table) => tableNames.includes(table));
+    const existingColumns = designDetailColumns.filter((column) => columnNames.includes(column));
+    return {
+      databaseConfigured: true,
+      existingColumns,
+      existingTables,
+      missingColumns: designDetailColumns.filter((column) => !existingColumns.includes(column)),
+      missingTables: designDetailTables.filter((table) => !existingTables.includes(table))
+    };
+  } catch (error) {
+    console.error("getDesignDetailSchemaDiagnostics failed:", error);
+    return {
+      databaseConfigured: true,
+      error: error instanceof Error ? error.message : String(error),
+      existingColumns: [],
+      existingTables: [],
+      missingColumns: [...designDetailColumns],
+      missingTables: [...designDetailTables]
+    };
   }
 }
 

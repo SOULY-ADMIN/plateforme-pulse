@@ -1,17 +1,65 @@
 import { MockupVisual } from "@/src/components/mockup-visual";
 import { ShareButton } from "@/src/components/share-button";
-import { findDesignBySlug } from "@/src/lib/db/designs";
-import { notFound } from "next/navigation";
+import { findDesignBySlug, getDesignDetailSchemaDiagnostics } from "@/src/lib/db/designs";
 import type { CSSProperties } from "react";
 
-export async function generateStaticParams() {
-  return [];
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+type DesignDetailDiagnostics = Awaited<ReturnType<typeof getDesignDetailSchemaDiagnostics>>;
+
+function DesignDetailLoadError({
+  diagnostics,
+  message,
+  slug
+}: {
+  diagnostics: DesignDetailDiagnostics;
+  message: string;
+  slug: string;
+}) {
+  return (
+    <main className="section-tight">
+      <div className="container panel">
+        <span className="section-kicker">Design detail error</span>
+        <h1 className="section-title">Unable to load this project</h1>
+        <p className="section-copy">Slug: {slug}</p>
+        <div className="empty">
+          <div>
+            <strong>{message}</strong>
+            <p>
+              Database configured: {diagnostics.databaseConfigured ? "yes" : "no"}.
+              Missing tables: {diagnostics.missingTables.length ? diagnostics.missingTables.join(", ") : "none"}.
+              Missing design columns: {diagnostics.missingColumns.length ? diagnostics.missingColumns.join(", ") : "none"}.
+            </p>
+            {"error" in diagnostics && diagnostics.error ? <p>{diagnostics.error}</p> : null}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export default async function DesignDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const design = await findDesignBySlug(slug);
-  if (!design) notFound();
+  let design;
+  try {
+    design = await findDesignBySlug(slug);
+  } catch (error) {
+    const diagnostics = await getDesignDetailSchemaDiagnostics();
+    console.error("Design detail load failed:", { slug, error, diagnostics });
+    return <DesignDetailLoadError diagnostics={diagnostics} message={errorMessage(error)} slug={slug} />;
+  }
+
+  if (!design) {
+    const diagnostics = await getDesignDetailSchemaDiagnostics();
+    console.error("Design detail not found:", { slug, diagnostics });
+    return <DesignDetailLoadError diagnostics={diagnostics} message="Design not found for this slug." slug={slug} />;
+  }
+
   const specs = [
     ["Title", design.title],
     ["Creator", `@${design.creator}`],
