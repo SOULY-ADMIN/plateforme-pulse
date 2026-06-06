@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 const productTypes = ["T-shirt", "Long Sleeve", "Sweatshirt", "Hoodie", "Pants", "Joggers", "Cargo Pants", "Shorts"] as const;
@@ -110,6 +110,7 @@ async function uploadCover(file: File) {
 }
 
 export default function SubmitDesignPage() {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [productType, setProductType] = useState<ProductType>("T-shirt");
   const [fit, setFit] = useState("Regular Fit");
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -131,7 +132,10 @@ export default function SubmitDesignPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    console.log("submit start");
+    console.log("formRef", formRef?.current);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const title = String(form.get("title") || "").trim();
     const description = String(form.get("description") || "").trim();
     if (!title || !description) {
@@ -146,7 +150,8 @@ export default function SubmitDesignPage() {
     setSubmitting(true);
     setStatus("Uploading mockup...");
     try {
-      const coverImageUrl = await uploadCover(coverFile);
+      const uploadResult = await uploadCover(coverFile);
+      console.log("upload result", uploadResult);
       setStatus("Saving submission...");
       const response = await fetch("/api/designs", {
         method: "POST",
@@ -155,7 +160,7 @@ export default function SubmitDesignPage() {
           branding: form.get("branding"),
           collar: form.get("collar") || undefined,
           color: form.get("color"),
-          coverImageUrl,
+          coverImageUrl: uploadResult,
           description,
           fabric: form.get("fabric"),
           fit: form.get("fit"),
@@ -171,9 +176,10 @@ export default function SubmitDesignPage() {
         })
       });
       const result = await response.json().catch(() => ({}));
+      console.log("insert result", result);
       if (!response.ok) throw new Error(result.error || "Submission failed.");
       setStatus(`Submission saved for moderation: ${result.design?.slug || title}.`);
-      event.currentTarget.reset();
+      (formRef.current ?? formElement)?.reset();
       setCoverFile(null);
       chooseProduct("T-shirt");
     } catch (error) {
@@ -194,7 +200,7 @@ export default function SubmitDesignPage() {
           <p className="section-copy">Choose realistic clothing specs before the community votes your concept toward production.</p>
         </div>
         <div className="split">
-          <form className="form-card submit-builder" onSubmit={submit}>
+          <form className="form-card submit-builder" onSubmit={submit} ref={formRef}>
             <p className="production-note">To keep production realistic, PULSE currently only accepts limited clothing types and production options.</p>
             <div className="production-matrix">
               <fieldset className="production-option-group full">

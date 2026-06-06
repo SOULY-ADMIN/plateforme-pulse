@@ -2366,7 +2366,10 @@ function bindInteractions() {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       toast(t("Message posted to the prototype stream."));
-      form.reset();
+      const submittedForm = event.currentTarget;
+      if (submittedForm instanceof HTMLFormElement) {
+        submittedForm.reset();
+      }
     });
   });
 
