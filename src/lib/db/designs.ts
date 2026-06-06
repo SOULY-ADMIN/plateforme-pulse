@@ -42,7 +42,7 @@ type DesignRow = {
 type CreatorRow = {
   avatar_url?: string | null;
   bio?: string | null;
-  display_name: string;
+  display_name?: string | null;
   follower_count?: number | string | null;
   following_count?: number | string | null;
   liked_designs?: number | string | null;
@@ -169,19 +169,29 @@ function mapDesignRows(rows: readonly unknown[]) {
 }
 
 function mapCreatorRow(row: CreatorRow, rank?: number): Creator {
+  const username = row.username || "creator";
+
   return {
     avatarUrl: row.avatar_url,
     bio: row.bio,
     followerCount: numberFrom(row.follower_count),
     followingCount: numberFrom(row.following_count),
     likedDesigns: numberFrom(row.liked_designs),
-    name: row.display_name,
+    name: row.display_name || username,
     rank,
     savedDesigns: numberFrom(row.saved_designs),
     totalLikes: numberFrom(row.total_likes),
     uploadedDesigns: numberFrom(row.uploaded_designs),
-    username: row.username
+    username
   };
+}
+
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return value.trim();
+  }
 }
 
 function designSelect() {
@@ -408,24 +418,99 @@ export async function listCreators() {
 export async function getCreatorProfile(username: string) {
   noStore();
   if (!sql) return null;
+  const profileUsername = safeDecode(username);
+  if (!profileUsername) return null;
+
   try {
-    const creators = await listCreators();
-    const creator = creators.find((item) => item.username === username) ?? null;
-    if (!creator) return null;
-    const designs = await sql`
-      select ${designSelect()}
-      from designs d
-      join users u on u.id = d.creator_id
-      left join design_likes dl on dl.design_id = d.id
-      left join design_saves ds on ds.design_id = d.id
-      left join comments c on c.design_id = d.id
-      where u.username = ${username} and d.status <> 'REJECTED'
-      group by d.id, u.username, u.display_name, u.avatar_url
-      order by d.created_at desc
-      limit 80
-    `;
-    return { creator, designs: mapDesignRows(designs) };
-  } catch {
+    let creatorRow: CreatorRow | undefined;
+    try {
+      const creatorRows = await sql`
+        select
+          u.username,
+          u.display_name,
+          u.avatar_url,
+          u.bio,
+          count(distinct inbound.follower_id) filter (where inbound.follower_id is not null) as follower_count,
+          count(distinct outbound.following_id) filter (where outbound.following_id is not null) as following_count,
+          count(distinct uploaded.id) as uploaded_designs,
+          count(distinct liked.design_id) as liked_designs,
+          count(distinct saved.design_id) as saved_designs,
+          count(distinct creator_likes.user_id) as total_likes
+        from users u
+        left join follows inbound on inbound.following_id = u.id
+        left join follows outbound on outbound.follower_id = u.id
+        left join designs uploaded on uploaded.creator_id = u.id and uploaded.status <> 'REJECTED'
+        left join design_likes liked on liked.user_id = u.id
+        left join design_saves saved on saved.user_id = u.id
+        left join design_likes creator_likes on creator_likes.design_id = uploaded.id
+        where u.username = ${profileUsername}
+        group by u.id, u.username, u.display_name, u.avatar_url, u.bio
+        limit 1
+      `;
+      creatorRow = creatorRows[0] as CreatorRow | undefined;
+    } catch (error) {
+      console.error("getCreatorProfile stats failed:", {
+        username: profileUsername,
+        message: error instanceof Error ? error.message : String(error),
+        error
+      });
+      const creatorRows = await sql`
+        select
+          u.username,
+          u.display_name,
+          u.avatar_url,
+          u.bio,
+          0 as follower_count,
+          0 as following_count,
+          0 as uploaded_designs,
+          0 as liked_designs,
+          0 as saved_designs,
+          0 as total_likes
+        from users u
+        where u.username = ${profileUsername}
+        limit 1
+      `;
+      creatorRow = creatorRows[0] as CreatorRow | undefined;
+    }
+
+    if (!creatorRow) return null;
+
+    let designs: Design[] = [];
+    try {
+      const designRows = await sql`
+        select ${designSelect()}
+        from designs d
+        join users u on u.id = d.creator_id
+        left join design_likes dl on dl.design_id = d.id
+        left join design_saves ds on ds.design_id = d.id
+        left join comments c on c.design_id = d.id
+        where u.username = ${profileUsername} and d.status <> 'REJECTED'
+        group by d.id, u.username, u.display_name, u.avatar_url
+        order by d.created_at desc
+        limit 80
+      `;
+      designs = mapDesignRows(designRows);
+    } catch (error) {
+      console.error("getCreatorProfile designs failed:", {
+        username: profileUsername,
+        message: error instanceof Error ? error.message : String(error),
+        error
+      });
+    }
+
+    const creator = mapCreatorRow(creatorRow);
+    creator.uploadedDesigns = designs.length;
+    if (!creator.totalLikes && designs.length) {
+      creator.totalLikes = designs.reduce((total, design) => total + design.likes, 0);
+    }
+
+    return { creator, designs };
+  } catch (error) {
+    console.error("getCreatorProfile failed:", {
+      username: profileUsername,
+      message: error instanceof Error ? error.message : String(error),
+      error
+    });
     return null;
   }
 }
