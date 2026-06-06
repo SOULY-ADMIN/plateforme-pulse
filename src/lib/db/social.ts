@@ -93,6 +93,11 @@ export async function toggleLike(user: ClerkDbUser | null | undefined, slug: str
       with target as (
         select id from designs where slug = ${slug}
       ),
+      before_count as (
+        select count(*) as count
+        from design_likes
+        where design_id = (select id from target)
+      ),
       removed as (
         delete from design_likes
         where design_id = (select id from target)
@@ -109,7 +114,12 @@ export async function toggleLike(user: ClerkDbUser | null | undefined, slug: str
       )
       select
         exists(select 1 from inserted) as liked,
-        (select count(*) from design_likes where design_id = (select id from target)) as count
+        greatest(
+          0,
+          coalesce((select count from before_count), 0)
+          - (select count(*) from removed)
+          + (select count(*) from inserted)
+        ) as count
     `;
     return {
       count: Number(rows[0]?.count || 0),
@@ -148,6 +158,11 @@ export async function toggleSave(user: ClerkDbUser | null | undefined, slug: str
       with target as (
         select id from designs where slug = ${slug}
       ),
+      before_count as (
+        select count(*) as count
+        from design_saves
+        where design_id = (select id from target)
+      ),
       removed as (
         delete from design_saves
         where design_id = (select id from target)
@@ -165,7 +180,12 @@ export async function toggleSave(user: ClerkDbUser | null | undefined, slug: str
       )
       select
         exists(select 1 from inserted) as saved,
-        (select count(*) from design_saves where design_id = (select id from target)) as count
+        greatest(
+          0,
+          coalesce((select count from before_count), 0)
+          - (select count(*) from removed)
+          + (select count(*) from inserted)
+        ) as count
     `;
     return {
       count: Number(rows[0]?.count || 0),

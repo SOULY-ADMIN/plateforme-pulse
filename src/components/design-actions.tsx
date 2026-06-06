@@ -7,6 +7,11 @@ function compact(value: number) {
   return Intl.NumberFormat("en", { notation: value > 9999 ? "compact" : "standard" }).format(value);
 }
 
+function positiveCount(value: unknown, fallback = 0) {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : fallback;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+}
+
 async function postAction(slug: string, action: "like" | "save") {
   const response = await fetch(`/api/designs/${slug}/${action}`, { method: "POST" });
   const payload = await response.json().catch(() => ({}));
@@ -27,8 +32,8 @@ export function DesignActions({
   initialSaves: number;
   slug: string;
 }) {
-  const [likes, setLikes] = useState(initialLikes);
-  const [saves, setSaves] = useState(initialSaves);
+  const [likes, setLikes] = useState(() => positiveCount(initialLikes));
+  const [saves, setSaves] = useState(() => positiveCount(initialSaves));
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<"like" | "save" | null>(null);
@@ -37,16 +42,35 @@ export function DesignActions({
   async function toggle(action: "like" | "save") {
     setBusy(action);
     setMessage("");
+    const previousLiked = liked;
+    const previousSaved = saved;
+    const previousLikes = likes;
+    const previousSaves = saves;
+
+    if (action === "like") {
+      const nextLiked = !previousLiked;
+      setLiked(nextLiked);
+      setLikes((count) => Math.max(0, count + (nextLiked ? 1 : -1)));
+    } else {
+      const nextSaved = !previousSaved;
+      setSaved(nextSaved);
+      setSaves((count) => Math.max(0, count + (nextSaved ? 1 : -1)));
+    }
+
     try {
       const result = await postAction(slug, action);
       if (action === "like") {
-        setLiked(Boolean(result.liked));
-        if (typeof result.count === "number") setLikes(result.count);
+        if (typeof result.liked === "boolean") setLiked(result.liked);
+        if (result.count !== undefined) setLikes((current) => positiveCount(result.count, current));
       } else {
-        setSaved(Boolean(result.saved));
-        if (typeof result.count === "number") setSaves(result.count);
+        if (typeof result.saved === "boolean") setSaved(result.saved);
+        if (result.count !== undefined) setSaves((current) => positiveCount(result.count, current));
       }
     } catch (error) {
+      setLiked(previousLiked);
+      setSaved(previousSaved);
+      setLikes(previousLikes);
+      setSaves(previousSaves);
       setMessage(error instanceof Error ? error.message : "Action unavailable");
     } finally {
       setBusy(null);
