@@ -2,9 +2,7 @@ import { DesignCard } from "@/src/components/design-card";
 import { getCreatorProfile } from "@/src/lib/db/designs";
 import Link from "next/link";
 
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
 function initials(value: string) {
   return value
