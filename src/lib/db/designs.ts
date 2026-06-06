@@ -322,7 +322,7 @@ export async function findDesignBySlug(slug: string) {
       left join design_likes dl on dl.design_id = d.id
       left join design_saves ds on ds.design_id = d.id
       left join comments c on c.design_id = d.id
-      where d.slug = ${slug}
+      where d.slug = ${slug} and d.status <> 'REJECTED'
       group by d.id, u.username, u.display_name, u.avatar_url
       limit 1
     `;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { Design } from "@/src/lib/pulse-data";
+import { AdminDeleteDesignButton } from "./admin-delete-design-button";
 import { DesignActions } from "./design-actions";
 import { MockupVisual } from "./mockup-visual";
 
@@ -15,11 +16,12 @@ function initials(value: string) {
     .toUpperCase();
 }
 
-export function DesignCard({ design }: { design: Design }) {
+export function DesignCard({ design, showAdminControls = false }: { design: Design; showAdminControls?: boolean }) {
   const creatorName = design.creatorName || design.creator;
 
   return (
     <article className={`design-card pin-${design.height}`}>
+      {showAdminControls ? <AdminDeleteDesignButton slug={design.slug} title={design.title} /> : null}
       <DesignActions comments={design.comments} initialLikes={design.likes} initialSaves={design.saves} slug={design.slug} />
       <Link className="card-media" href={`/designs/${design.slug}`} aria-label={`Open ${design.title}`}>
         <MockupVisual design={design} />

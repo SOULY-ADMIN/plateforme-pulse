@@ -23,7 +23,15 @@ function initials(value: string) {
     .toUpperCase();
 }
 
-export function CommunityBrowser({ creators, designs }: { creators: Creator[]; designs: Design[] }) {
+export function CommunityBrowser({
+  creators,
+  designs,
+  isAdmin = false
+}: {
+  creators: Creator[];
+  designs: Design[];
+  isAdmin?: boolean;
+}) {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
   const filtered = useMemo(
     () => designs.filter((design) => matchesFilter(design, activeFilter)),
@@ -62,7 +70,7 @@ export function CommunityBrowser({ creators, designs }: { creators: Creator[]; d
         ))}
       </div>
       {filtered.length ? (
-        <div className="masonry">{filtered.map((design) => <DesignCard key={design.slug} design={design} />)}</div>
+        <div className="masonry">{filtered.map((design) => <DesignCard key={design.slug} design={design} showAdminControls={isAdmin} />)}</div>
       ) : (
         <div className="empty">
           <div>

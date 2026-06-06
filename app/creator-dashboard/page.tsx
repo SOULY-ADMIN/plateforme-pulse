@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { DesignCard } from "@/src/components/design-card";
 import { accountFromClerkUser } from "@/src/lib/auth-profile";
-import { getOptionalCurrentUser } from "@/src/lib/auth-runtime";
+import { getOptionalCurrentUser, isAdminUser } from "@/src/lib/auth-runtime";
 import { getLikedDesigns, getSavedDesigns, getUserDesigns } from "@/src/lib/db/designs";
 
 export default async function CreatorDashboardPage() {
   const user = await getOptionalCurrentUser();
+  const isAdmin = isAdminUser(user);
   const account = accountFromClerkUser(user);
   const [activeDesigns, saved, liked] = await Promise.all([
     getUserDesigns(user?.id),
@@ -61,7 +62,7 @@ export default async function CreatorDashboardPage() {
           </div>
           {activeDesigns.length ? (
             <div className="carousel">
-              {activeDesigns.map((design) => <DesignCard key={design.slug} design={design} />)}
+              {activeDesigns.map((design) => <DesignCard key={design.slug} design={design} showAdminControls={isAdmin} />)}
             </div>
           ) : (
             <div className="empty"><div><strong>No submissions yet</strong><p>Use the submit flow to create your first real database-backed concept.</p></div></div>

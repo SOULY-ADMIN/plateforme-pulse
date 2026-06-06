@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getOptionalAuth, isClerkConfigured } from "@/src/lib/auth-runtime";
+import { getOptionalAuth, getOptionalCurrentUser, isAdminUser, isClerkConfigured } from "@/src/lib/auth-runtime";
 import { sql } from "@/src/lib/db/client";
 
 const moderationSchema = z.object({
@@ -13,6 +13,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
   const { userId } = await getOptionalAuth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getOptionalCurrentUser();
+  if (!isAdminUser(user)) {
+    console.warn("Moderation blocked: non-admin user", {
+      email: user?.primaryEmailAddress?.emailAddress || "unknown",
+      userId
+    });
+    return NextResponse.json({ error: "Forbidden: admin access required" }, { status: 403 });
+  }
   if (!sql) return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
 
   const parsed = moderationSchema.safeParse(await request.json());

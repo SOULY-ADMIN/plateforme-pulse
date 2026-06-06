@@ -4,6 +4,13 @@ const placeholderMarkers = [
   "cHVsc2UtZGVtby",
 ];
 
+const adminEmails = new Set(["so.bennani.ma@gmail.com"]);
+
+type AdminCheckUser = {
+  emailAddresses?: Array<{ emailAddress?: string | null }> | null;
+  primaryEmailAddress?: { emailAddress?: string | null } | null;
+};
+
 function hasPlaceholderMarker(value: string) {
   return placeholderMarkers.some((marker) => value.toLowerCase().includes(marker.toLowerCase()));
 }
@@ -30,4 +37,21 @@ export async function getOptionalAuth() {
   if (!isClerkConfigured()) return { userId: null };
   const { auth } = await import("@clerk/nextjs/server");
   return auth();
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  return value?.trim().toLowerCase() || "";
+}
+
+export function isAdminUser(user: AdminCheckUser | null | undefined) {
+  const emails = [
+    normalizeEmail(user?.primaryEmailAddress?.emailAddress),
+    ...(user?.emailAddresses || []).map((email) => normalizeEmail(email.emailAddress))
+  ].filter(Boolean);
+
+  return emails.some((email) => adminEmails.has(email));
+}
+
+export async function getIsCurrentUserAdmin() {
+  return isAdminUser(await getOptionalCurrentUser());
 }

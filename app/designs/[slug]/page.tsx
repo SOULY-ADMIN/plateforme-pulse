@@ -1,5 +1,7 @@
+import { AdminDeleteDesignButton } from "@/src/components/admin-delete-design-button";
 import { MockupVisual } from "@/src/components/mockup-visual";
 import { ShareButton } from "@/src/components/share-button";
+import { getOptionalCurrentUser, isAdminUser } from "@/src/lib/auth-runtime";
 import { findDesignBySlug, getDesignDetailSchemaDiagnostics } from "@/src/lib/db/designs";
 import type { CSSProperties } from "react";
 
@@ -76,6 +78,7 @@ function DesignDetailLoadError({
 
 export default async function DesignDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const isAdmin = isAdminUser(await getOptionalCurrentUser());
   let design;
   try {
     design = await findDesignBySlug(slug);
@@ -120,7 +123,11 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
             <h1 className="detail-title">{design.title}</h1>
             {description ? <p className="muted">{description}</p> : null}
             <div className="approval"><strong>{design.likes.toLocaleString()} community votes</strong><div className="progress" style={{ "--value": `${Math.min(100, design.likes)}%` } as CSSProperties}><span /></div></div>
-            <div className="hero-actions"><a className="primary-btn" href={`/community`}>Back to community</a><ShareButton title={design.title} /></div>
+            <div className="hero-actions">
+              <a className="primary-btn" href={`/community`}>Back to community</a>
+              <ShareButton title={design.title} />
+              {isAdmin ? <AdminDeleteDesignButton redirectTo="/community" slug={design.slug} title={design.title} /> : null}
+            </div>
           </aside>
         </div>
       </section>
