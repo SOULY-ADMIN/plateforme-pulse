@@ -4373,6 +4373,10 @@ html[dir="rtl"] .brand span:last-child {
     --nav-h: 64px;
   }
 
+  body {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
   .nav-inner {
     grid-template-columns: auto auto;
   }
@@ -4405,6 +4409,7 @@ html[dir="rtl"] .brand span:last-child {
     left: 12px;
     right: 12px;
     bottom: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 6px;
@@ -4686,6 +4691,80 @@ html[dir="rtl"] .brand span:last-child {
     flex-direction: row;
   }
 
+  .quick-actions .icon-btn,
+  .like-cta,
+  .save-cta,
+  .admin-delete-btn,
+  .card-footer-action a,
+  .hero-actions .ghost-btn,
+  .hero-actions .primary-btn,
+  .hero-actions button {
+    min-height: 44px;
+  }
+
+  .card-signal-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .like-cta,
+  .save-cta {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .vote-count {
+    text-align: center;
+  }
+
+  .design-card > .admin-delete-control {
+    left: 10px;
+    top: 10px;
+    max-width: calc(100% - 112px);
+  }
+
+  .design-card > .admin-delete-control .admin-delete-btn {
+    min-width: 44px;
+  }
+
+  .admin-delete-control {
+    justify-content: stretch;
+  }
+
+  .admin-delete-btn {
+    width: 100%;
+    padding: 0 14px;
+  }
+
+  .moderation-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .moderation-actions,
+  .moderation-actions .mini-btn {
+    width: 100%;
+  }
+
+  .moderation-actions .mini-btn {
+    min-height: 44px;
+  }
+
+  .admin-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .card-title,
+  .card-caption,
+  .creator-inline,
+  .section-title,
+  .detail-title,
+  .spec-value {
+    overflow-wrap: anywhere;
+  }
+
   .section {
     padding: 60px 0;
   }
@@ -4730,6 +4809,61 @@ html[dir="rtl"] .brand span:last-child {
     right: 12px;
     bottom: 84px;
     max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .container,
+  .wide-container {
+    width: min(100% - 18px, 460px);
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 13vw, 48px);
+  }
+
+  .section-title {
+    font-size: clamp(28px, 9vw, 32px);
+  }
+
+  .detail-title {
+    font-size: clamp(36px, 11vw, 54px);
+  }
+
+  .card-visual,
+  .pin-short .card-visual {
+    min-height: 340px;
+  }
+
+  .pin-tall .card-visual,
+  .gallery .card-visual {
+    min-height: 430px;
+  }
+
+  .hero-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-actions > * {
+    width: 100%;
+  }
+
+  .story {
+    min-height: 118px;
+  }
+
+  .creator-stories {
+    grid-auto-columns: 96px;
   }
 }
 
