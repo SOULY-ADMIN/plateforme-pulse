@@ -3,14 +3,11 @@ import { MockupVisual } from "@/src/components/mockup-visual";
 import { ShareButton } from "@/src/components/share-button";
 import { getOptionalCurrentUser, isAdminUser } from "@/src/lib/auth-runtime";
 import { findDesignBySlug, getDesignDetailSchemaDiagnostics } from "@/src/lib/db/designs";
+import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
 
 const hiddenSpecValues = new Set([
   "",
@@ -43,32 +40,21 @@ function firstSpecValue(...values: unknown[]) {
   return "";
 }
 
-type DesignDetailDiagnostics = Awaited<ReturnType<typeof getDesignDetailSchemaDiagnostics>>;
-
 function DesignDetailLoadError({
-  diagnostics,
-  message,
   slug
 }: {
-  diagnostics: DesignDetailDiagnostics;
-  message: string;
   slug: string;
 }) {
   return (
     <main className="section-tight">
       <div className="container panel">
         <span className="section-kicker">Design detail error</span>
-        <h1 className="section-title">Unable to load this project</h1>
-        <p className="section-copy">Slug: {slug}</p>
+        <h1 className="section-title">Project temporarily unavailable</h1>
+        <p className="section-copy">We could not load this design right now. Please try again shortly.</p>
         <div className="empty">
           <div>
-            <strong>{message}</strong>
-            <p>
-              Database configured: {diagnostics.databaseConfigured ? "yes" : "no"}.
-              Missing tables: {diagnostics.missingTables.length ? diagnostics.missingTables.join(", ") : "none"}.
-              Missing design columns: {diagnostics.missingColumns.length ? diagnostics.missingColumns.join(", ") : "none"}.
-            </p>
-            {"error" in diagnostics && diagnostics.error ? <p>{diagnostics.error}</p> : null}
+            <strong>Reference: {slug}</strong>
+            <p>No technical database information is exposed on this page.</p>
           </div>
         </div>
       </div>
@@ -85,13 +71,12 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
   } catch (error) {
     const diagnostics = await getDesignDetailSchemaDiagnostics();
     console.error("Design detail load failed:", { slug, error, diagnostics });
-    return <DesignDetailLoadError diagnostics={diagnostics} message={errorMessage(error)} slug={slug} />;
+    return <DesignDetailLoadError slug={slug} />;
   }
 
   if (!design) {
-    const diagnostics = await getDesignDetailSchemaDiagnostics();
-    console.error("Design detail not found:", { slug, diagnostics });
-    return <DesignDetailLoadError diagnostics={diagnostics} message="Design not found for this slug." slug={slug} />;
+    console.warn("Design detail not found or hidden:", { slug });
+    notFound();
   }
 
   const description = firstSpecValue(design.description);

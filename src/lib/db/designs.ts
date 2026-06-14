@@ -390,27 +390,42 @@ export async function listCreators() {
   try {
     const rows = await sql`
       select
-        username,
-        display_name,
-        avatar_url,
-        bio,
-        follower_count,
-        following_count,
-        uploaded_designs,
-        liked_designs,
-        saved_designs,
-        coalesce((
+        u.username,
+        u.display_name,
+        u.avatar_url,
+        u.bio,
+        (select count(*) from follows where following_id = u.id) as follower_count,
+        (select count(*) from follows where follower_id = u.id) as following_count,
+        (
           select count(*)
-          from design_likes dl
-          join designs d on d.id = dl.design_id
-          where d.creator_id = user_profile_stats.id
-        ), 0) as total_likes
-      from user_profile_stats
+          from designs uploaded
+          where uploaded.creator_id = u.id and uploaded.status <> 'REJECTED'
+        ) as uploaded_designs,
+        (
+          select count(distinct liked.design_id)
+          from design_likes liked
+          join designs liked_design on liked_design.id = liked.design_id
+          where liked.user_id = u.id and liked_design.status <> 'REJECTED'
+        ) as liked_designs,
+        (
+          select count(distinct saved.design_id)
+          from design_saves saved
+          join designs saved_design on saved_design.id = saved.design_id
+          where saved.user_id = u.id and saved_design.status <> 'REJECTED'
+        ) as saved_designs,
+        (
+          select count(*)
+          from design_likes received
+          join designs liked_design on liked_design.id = received.design_id
+          where liked_design.creator_id = u.id and liked_design.status <> 'REJECTED'
+        ) as total_likes
+      from users u
       order by uploaded_designs desc, total_likes desc, username asc
       limit 40
     `;
     return rows.map((row, index) => mapCreatorRow(row as CreatorRow, index + 1));
-  } catch {
+  } catch (error) {
+    console.error("listCreators failed:", error);
     return [];
   }
 }
@@ -550,7 +565,7 @@ export async function getSavedDesigns(clerkUserId: string | null | undefined) {
       left join design_likes dl on dl.design_id = d.id
       left join design_saves ds on ds.design_id = d.id
       left join comments c on c.design_id = d.id
-      where viewer.clerk_user_id = ${clerkUserId}
+      where viewer.clerk_user_id = ${clerkUserId} and d.status <> 'REJECTED'
       group by d.id, u.username, u.display_name, u.avatar_url, saved.created_at
       order by saved.created_at desc
       limit 80
@@ -574,7 +589,7 @@ export async function getLikedDesigns(clerkUserId: string | null | undefined) {
       left join design_likes dl on dl.design_id = d.id
       left join design_saves ds on ds.design_id = d.id
       left join comments c on c.design_id = d.id
-      where viewer.clerk_user_id = ${clerkUserId}
+      where viewer.clerk_user_id = ${clerkUserId} and d.status <> 'REJECTED'
       group by d.id, u.username, u.display_name, u.avatar_url, liked.created_at
       order by liked.created_at desc
       limit 80
@@ -640,7 +655,12 @@ export async function getPlatformStats() {
       select
         (select count(*) from designs where status <> 'REJECTED') as designs,
         (select count(*) from users) as creators,
-        (select count(*) from design_likes) as votes
+        (
+          select count(*)
+          from design_likes
+          join designs on designs.id = design_likes.design_id
+          where designs.status <> 'REJECTED'
+        ) as votes
     `;
     return {
       creators: numberFrom(rows[0]?.creators),

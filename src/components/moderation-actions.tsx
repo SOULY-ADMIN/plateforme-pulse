@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function ModerationActions({ slug }: { slug: string }) {
+  const router = useRouter();
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -18,6 +20,7 @@ export function ModerationActions({ slug }: { slug: string }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Moderation failed");
       setStatus(action === "APPROVED" ? "Approved" : "Rejected");
+      router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Moderation failed");
     } finally {

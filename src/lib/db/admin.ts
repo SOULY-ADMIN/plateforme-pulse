@@ -36,17 +36,6 @@ export type AdminStats = {
   users: number;
 };
 
-const emptyStats: AdminStats = {
-  approvedDesigns: 0,
-  hiddenDesigns: 0,
-  likes: 0,
-  liveDesigns: 0,
-  pendingDesigns: 0,
-  saves: 0,
-  totalDesigns: 0,
-  users: 0
-};
-
 function numberFrom(value: number | string | null | undefined) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number.parseInt(value, 10) || 0;
@@ -59,7 +48,7 @@ function dateFrom(value: Date | string | null | undefined) {
 
 export async function getAdminStats(): Promise<AdminStats> {
   noStore();
-  if (!sql) return emptyStats;
+  if (!sql) throw new Error("Database is not configured.");
 
   try {
     const rows = await sql`
@@ -85,13 +74,13 @@ export async function getAdminStats(): Promise<AdminStats> {
     };
   } catch (error) {
     console.error("getAdminStats failed:", error);
-    return emptyStats;
+    throw error;
   }
 }
 
 export async function listAdminDesigns(): Promise<AdminDesignRow[]> {
   noStore();
-  if (!sql) return [];
+  if (!sql) throw new Error("Database is not configured.");
 
   try {
     const rows = await sql`
@@ -114,7 +103,6 @@ export async function listAdminDesigns(): Promise<AdminDesignRow[]> {
       left join comments c on c.design_id = d.id
       group by d.id, u.username, u.display_name
       order by d.created_at desc
-      limit 200
     `;
     return rows.map((row): AdminDesignRow => ({
       commentCount: numberFrom(row.comment_count),
@@ -131,13 +119,13 @@ export async function listAdminDesigns(): Promise<AdminDesignRow[]> {
     }));
   } catch (error) {
     console.error("listAdminDesigns failed:", error);
-    return [];
+    throw error;
   }
 }
 
 export async function listAdminUsers(): Promise<AdminUserRow[]> {
   noStore();
-  if (!sql) return [];
+  if (!sql) throw new Error("Database is not configured.");
 
   try {
     const rows = await sql`
@@ -146,16 +134,24 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
         u.display_name,
         u.avatar_url,
         u.created_at,
-        count(distinct d.id) as submitted_designs,
-        count(distinct saved.design_id) as saved_designs,
-        count(distinct received_likes.user_id) as likes_received
+        (
+          select count(*)
+          from designs d
+          where d.creator_id = u.id
+        ) as submitted_designs,
+        (
+          select count(distinct (saved.design_id, saved.user_id))
+          from design_saves saved
+          where saved.user_id = u.id
+        ) as saved_designs,
+        (
+          select count(*)
+          from design_likes received_likes
+          join designs liked_design on liked_design.id = received_likes.design_id
+          where liked_design.creator_id = u.id
+        ) as likes_received
       from users u
-      left join designs d on d.creator_id = u.id
-      left join design_saves saved on saved.user_id = u.id
-      left join design_likes received_likes on received_likes.design_id = d.id
-      group by u.id
       order by u.created_at desc
-      limit 200
     `;
     return rows.map((row): AdminUserRow => ({
       avatarUrl: row.avatar_url,
@@ -168,7 +164,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
     }));
   } catch (error) {
     console.error("listAdminUsers failed:", error);
-    return [];
+    throw error;
   }
 }
 
