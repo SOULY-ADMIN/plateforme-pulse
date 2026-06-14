@@ -20,7 +20,9 @@ export function AdminDeleteDesignButton({
   const [message, setMessage] = useState("");
 
   async function deleteDesign() {
-    const confirmed = window.confirm(`Masquer le design "${title}" ? Cette action le retire des pages publiques.`);
+    const confirmed = window.confirm(
+      `Supprimer définitivement le design "${title}" ? Cette action est irréversible et supprimera aussi ses likes, sauvegardes, commentaires et relations.`
+    );
     if (!confirmed) return;
 
     setBusy(true);
@@ -28,16 +30,16 @@ export function AdminDeleteDesignButton({
     try {
       const response = await fetch(`/api/admin/designs/${slug}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "Action admin impossible");
+      if (!response.ok) throw new Error(result.message || result.error || "Suppression impossible");
 
-      setMessage("Design masque");
+      setMessage("Design supprimé définitivement");
       if (redirectTo) {
         router.push(redirectTo);
       } else {
         router.refresh();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Action admin impossible");
+      setMessage(error instanceof Error ? error.message : "Suppression impossible");
     } finally {
       setBusy(false);
     }
@@ -47,7 +49,7 @@ export function AdminDeleteDesignButton({
     <span className="admin-delete-control">
       <button className="admin-delete-btn" disabled={busy} onClick={deleteDesign} type="button">
         <Trash2 size={15} />
-        <span>{busy ? "Masquage..." : label}</span>
+        <span>{busy ? "Suppression..." : label}</span>
       </button>
       {message ? <small>{message}</small> : null}
     </span>

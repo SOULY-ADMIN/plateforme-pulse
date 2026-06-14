@@ -107,7 +107,7 @@ export default async function AdminPage() {
                   <div className="moderation-toolbar">
                     <Link className="mini-btn" href={`/designs/${design.slug}`}>Open</Link>
                     <ModerationActions slug={design.slug} />
-                    <AdminDeleteDesignButton label="Masquer" slug={design.slug} title={design.title} />
+                    <AdminDeleteDesignButton label="Delete" slug={design.slug} title={design.title} />
                   </div>
                 </article>
               ))}

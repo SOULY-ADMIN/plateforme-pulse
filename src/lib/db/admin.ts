@@ -36,6 +36,23 @@ export type AdminStats = {
   users: number;
 };
 
+export type AdminDesignDeletion = {
+  deletedRelations: {
+    comments: number;
+    dropDesigns: number;
+    likes: number;
+    moderationEvents: number;
+    notifications: number;
+    products: number;
+    saves: number;
+  };
+  design: {
+    id: string;
+    slug: string;
+    title: string;
+  };
+};
+
 function numberFrom(value: number | string | null | undefined) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number.parseInt(value, 10) || 0;
@@ -188,6 +205,95 @@ export async function setAdminDesignStatus(slug: string, status: "APPROVED" | "R
   }
 }
 
-export async function hideAdminDesign(slug: string) {
-  return setAdminDesignStatus(slug, "REJECTED");
+export async function deleteAdminDesign(slug: string): Promise<AdminDesignDeletion | null> {
+  noStore();
+  if (!sql) throw new Error("Database is not configured.");
+
+  try {
+    return await sql.begin(async (transaction) => {
+      const designs = await transaction`
+        select id, slug, title
+        from designs
+        where slug = ${slug}
+        for update
+      `;
+      const design = designs[0];
+      if (!design) return null;
+
+      const notificationColumns = await transaction`
+        select exists (
+          select 1
+          from information_schema.columns
+          where table_schema = 'public'
+            and table_name = 'notifications'
+            and column_name = 'design_id'
+        ) as has_design_id
+      `;
+
+      const products = await transaction`
+        delete from products
+        where design_id = ${design.id}
+        returning id
+      `;
+      const notifications = notificationColumns[0]?.has_design_id
+        ? await transaction`
+            delete from notifications
+            where design_id = ${design.id}
+            returning id
+          `
+        : [];
+      const moderationEvents = await transaction`
+        delete from moderation_events
+        where design_id = ${design.id}
+        returning id
+      `;
+      const comments = await transaction`
+        delete from comments
+        where design_id = ${design.id}
+        returning id
+      `;
+      const saves = await transaction`
+        delete from design_saves
+        where design_id = ${design.id}
+        returning design_id
+      `;
+      const likes = await transaction`
+        delete from design_likes
+        where design_id = ${design.id}
+        returning design_id
+      `;
+      const dropDesigns = await transaction`
+        delete from drop_designs
+        where design_id = ${design.id}
+        returning design_id
+      `;
+      const deletedDesigns = await transaction`
+        delete from designs
+        where id = ${design.id}
+        returning id, slug, title
+      `;
+      const deletedDesign = deletedDesigns[0];
+      if (!deletedDesign) throw new Error(`Design ${slug} was not deleted.`);
+
+      return {
+        deletedRelations: {
+          comments: comments.length,
+          dropDesigns: dropDesigns.length,
+          likes: likes.length,
+          moderationEvents: moderationEvents.length,
+          notifications: notifications.length,
+          products: products.length,
+          saves: saves.length
+        },
+        design: {
+          id: String(deletedDesign.id),
+          slug: String(deletedDesign.slug),
+          title: String(deletedDesign.title)
+        }
+      };
+    });
+  } catch (error) {
+    console.error("deleteAdminDesign failed:", { slug, error });
+    throw error;
+  }
 }

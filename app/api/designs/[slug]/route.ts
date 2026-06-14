@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/src/lib/admin-guard";
-import { hideAdminDesign } from "@/src/lib/db/admin";
+import { deleteAdminDesign } from "@/src/lib/db/admin";
 import { sql } from "@/src/lib/db/client";
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -10,14 +10,19 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ slug: s
 
   const { slug } = await params;
   try {
-    const design = await hideAdminDesign(slug);
-    if (!design) return NextResponse.json({ error: "Design not found." }, { status: 404 });
-    return NextResponse.json({ design });
+    const deletion = await deleteAdminDesign(slug);
+    if (!deletion) return NextResponse.json({ error: "Design not found." }, { status: 404 });
+    console.log("Legacy admin design permanently deleted", {
+      deletedRelations: deletion.deletedRelations,
+      email: admin.user?.primaryEmailAddress?.emailAddress || "unknown",
+      slug: deletion.design.slug
+    });
+    return NextResponse.json({ deletion });
   } catch (error) {
     console.error("Legacy design delete failed:", { slug, error });
     return NextResponse.json(
       {
-        error: "Unable to hide design",
+        error: "Unable to permanently delete design",
         message: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
