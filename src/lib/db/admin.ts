@@ -62,7 +62,7 @@ export async function getAdminStats(): Promise<AdminStats> {
         (select count(*) from design_saves) as saves,
         (select count(*) from users) as users
     `;
-    return {
+    const stats = {
       approvedDesigns: numberFrom(rows[0]?.approved_designs),
       hiddenDesigns: numberFrom(rows[0]?.hidden_designs),
       likes: numberFrom(rows[0]?.likes),
@@ -72,6 +72,8 @@ export async function getAdminStats(): Promise<AdminStats> {
       totalDesigns: numberFrom(rows[0]?.total_designs),
       users: numberFrom(rows[0]?.users)
     };
+    console.log("getAdminStats success:", stats);
+    return stats;
   } catch (error) {
     console.error("getAdminStats failed:", error);
     throw error;
