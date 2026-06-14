@@ -67,7 +67,7 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ s
   const isAdmin = isAdminUser(await getOptionalCurrentUser());
   let design;
   try {
-    design = await findDesignBySlug(slug);
+    design = await findDesignBySlug(slug, isAdmin);
   } catch (error) {
     const diagnostics = await getDesignDetailSchemaDiagnostics();
     console.error("Design detail load failed:", { slug, error, diagnostics });

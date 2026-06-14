@@ -310,22 +310,34 @@ export async function listPendingDesigns() {
   }
 }
 
-export async function findDesignBySlug(slug: string) {
+export async function findDesignBySlug(slug: string, includeRejected = false) {
   noStore();
   if (!sql) return null;
   try {
-    console.log("findDesignBySlug start", slug);
-    const rows = await sql`
-      select ${designSelect()}
-      from designs d
-      join users u on u.id = d.creator_id
-      left join design_likes dl on dl.design_id = d.id
-      left join design_saves ds on ds.design_id = d.id
-      left join comments c on c.design_id = d.id
-      where d.slug = ${slug} and d.status <> 'REJECTED'
-      group by d.id, u.username, u.display_name, u.avatar_url
-      limit 1
-    `;
+    console.log("findDesignBySlug start", { includeRejected, slug });
+    const rows = includeRejected
+      ? await sql`
+          select ${designSelect()}
+          from designs d
+          join users u on u.id = d.creator_id
+          left join design_likes dl on dl.design_id = d.id
+          left join design_saves ds on ds.design_id = d.id
+          left join comments c on c.design_id = d.id
+          where d.slug = ${slug}
+          group by d.id, u.username, u.display_name, u.avatar_url
+          limit 1
+        `
+      : await sql`
+          select ${designSelect()}
+          from designs d
+          join users u on u.id = d.creator_id
+          left join design_likes dl on dl.design_id = d.id
+          left join design_saves ds on ds.design_id = d.id
+          left join comments c on c.design_id = d.id
+          where d.slug = ${slug} and d.status <> 'REJECTED'
+          group by d.id, u.username, u.display_name, u.avatar_url
+          limit 1
+        `;
     console.log("findDesignBySlug rows", rows.length);
     return rows[0] ? mapDesignRow(rows[0] as DesignRow) : null;
   } catch (error) {

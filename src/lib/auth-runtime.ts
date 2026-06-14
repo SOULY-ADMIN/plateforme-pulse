@@ -4,7 +4,9 @@ const placeholderMarkers = [
   "cHVsc2UtZGVtby",
 ];
 
-const adminEmails = new Set(["so.bennani.ma@gmail.com"]);
+export const PULSE_ADMIN_EMAIL = "so.bennani.ma@gmail.com";
+
+const adminEmails = new Set([PULSE_ADMIN_EMAIL]);
 
 type AdminCheckUser = {
   emailAddresses?: Array<{ emailAddress?: string | null }> | null;
